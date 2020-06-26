@@ -20,8 +20,8 @@
      output logic [1:0] wbsel,
      output logic regwen,
      output logic [1:0] immsel,
-     output logic asel,
-     output logic bsel,
+     output logic [1:0]asel,
+     output logic [1:0] bsel,
      output logic [3:0] alusel,
      output logic mdrwrite,
      
@@ -48,7 +48,8 @@
     RTYPE_ALU   = 6,
     RTYPE_WB    = 7,
     BEQ_EXEC    = 8,
-    JAL_EXEC    = 9
+    JAL_EXEC    = 9,
+    ADDI_XOR = 10
 	} sm_type;
 
 sm_type current,next;
@@ -77,6 +78,7 @@ sm_type current,next;
                 ALU:    next = RTYPE_ALU;
                 BEQ:    next = BEQ_EXEC;
                 JAL:    next = JAL_EXEC;
+                ADDI:   next = LSW_ADDR;
                 // For unimplemented instructions do nothing
                 default:next = FETCH; 
             endcase
@@ -85,6 +87,7 @@ sm_type current,next;
             casex (opcode_funct3)
                 LW:     next = LW_MEM;
                 SW:     next = SW_MEM;
+                ADDI:   next = ADDI_XOR;
                 // This is never reached
                 default:next = SW_MEM;
             endcase
@@ -103,6 +106,8 @@ sm_type current,next;
             next = FETCH;
         JAL_EXEC:
             next = FETCH;
+        ADDI_XOR:
+            next = RTYPE_WB;
         default: // Should never reach this
             next = FETCH;
     endcase
@@ -141,7 +146,7 @@ sm_type current,next;
             alusel      = ALU_ADD;
         end
         LSW_ADDR: begin
-            immsel      = (opcode_funct3 == LW) ? IMM_L : IMM_S;
+            immsel      = ((opcode_funct3 == LW) || (opcode_funct3 == ADDI)) ? IMM_L : IMM_S;
             asel        = ALUA_REG;
             bsel        = ALUB_IMM;
             alusel      = ALU_ADD;
@@ -180,6 +185,12 @@ sm_type current,next;
             regwen      = 1'b1;
             wbsel       = WB_PC;
         end
+        ADDI_XOR: begin
+            asel =  ALUA_ALU_FB;
+            bsel =  ALUB_CONST;
+            alusel = ALU_XOR;
+        end
+
     endcase
  end
 
